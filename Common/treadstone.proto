@@ -1,0 +1,156 @@
+package UNO;
+
+message LoginInfo {
+	required string user = 1;
+	required int32 room_number = 2;
+	optional string password = 3;
+}
+
+message RoomInfo {
+	required string name = 1;
+	required int32 number = 2;
+	required bool locked = 3;
+}
+
+message RoomDetail {
+	enum RoomState {
+		Wait = 41;
+		Running = 42;
+	}
+
+	required int32 number = 1;
+	optional string name = 2;
+	optional string password = 3;
+	optional int32 timeout = 4; 
+	optional RoomState state = 5;
+}
+
+message UserInfo {
+	enum State {
+		uno = 61;
+		idle = 62;
+		ready = 63;
+	}
+	required int32 ID = 1;
+	required string name = 2;
+	required State state = 3;			// 状态
+	required int32 card_count = 4;	// 手牌数 
+}
+
+message PlayState {
+	required int32 now_card = 1;	// 当前打出的牌的编号
+	required bool double_card = 5 [default = false];	// 是否出了2张
+	required bool intercepted = 6 [default = false];	// 抢了
+	required int32 now_turn = 2; 	// 当前轮到谁出牌, 填用户id		
+	required int32 next_turn = 3; 	// 下次轮到谁出牌
+	required int32 left_card = 4; 	// 牌堆剩余
+}
+
+message StatusInfo {
+	enum StatusType {
+		User = 51;
+		Room = 52;
+		Play = 53;
+	}
+
+	required StatusType type = 1;	
+	repeated UserInfo user_info = 2;
+	optional RoomDetail room_detail = 3;
+	optional PlayState play_state = 4;
+	optional bool all_user_updated = 5;
+}
+
+message LoginResult {
+	required int32 myID = 1;				//自己获得的ID
+	required StatusInfo status_info = 2; 
+}
+
+message RoomMsg {
+	enum Type {
+		GetList = 0;		// 只有类型, 无附加内容
+		ListResult = 1; 	// 用于返回房间列表, 带RoomInfo，房间为空不带
+		Login = 2;			// 带LoginInfo
+		LoginResult = 3;	// 登录结果返回，带LoginResult，登录失败不带
+		Create = 4;			// 只有类型, 带LoginInfo, 其中房间号被忽略
+		Setting = 5;		// 用于房间设置, 带RoomDetail
+	}
+	
+	required Type type = 1;
+	optional LoginInfo login_info = 2 ;
+	repeated RoomInfo room_info = 3;	
+	optional LoginResult login_result = 5; 	
+	optional RoomDetail room_detail = 6;	
+}
+
+message CardInfo {
+	required int32 count = 1; // 牌数量, 可能情况 摸牌出牌:1 罚牌出2个一样的:2 +4和质疑成功:4 质疑失败:6 初始:7 
+	repeated int32 number = 2; // 牌的编号
+}
+
+message DoubtInfo {
+	required int32 user_id = 1;
+}
+
+message GameMsg {
+	enum Type {
+		PlayCard = 11;			// 出牌, 附加 CardInfo. 指出质疑牌 也用该类型
+		PlayCardResult = 12;	// 出牌结果, 如出牌不合法, 带CardInfo, 即被罚的牌, 客户端回滚操作 . 出牌合法, 无附加内容
+		DrawCard = 13;	// 摸牌, 只有类型, 无附加内容. 服务器决定会摸几张
+		DrawCardResult = 14;	// 摸牌结果, 带CardInfo. 罚牌也用这个类型
+		UNO = 15;		// 喊UNO, 只有类型, 无附加内容 
+		Ready = 16;
+		Doubt = 17;		// 带DoubtInfo
+		Status = 18;	// 服务器不定期发送. 带StatusInfo
+		Done = 19;		// 直接结束回合. 出牌自动结束
+		Black = 20;		// 出黑色牌后, 客户端用该类型指定颜色或玩家ID, 带ColorInfo 或 DoubtInfo, 
+						// 服务端用该类型 表明被+4指定的玩家 带DoubtInfo， 或展示被质疑玩家手牌, 带CardInfo 
+		Timeout = 21;
+	}
+	
+	enum ColorInfo {
+		Shit = 31;		// 占位。 Protobuf-net 不能发送31号枚举，不知道为什么
+		Blue = 32;
+		Green = 33;
+		Yellow = 34;
+		Red = 35;
+	}
+	
+	required Type type = 1;	
+	optional ColorInfo color_info = 2;
+	optional CardInfo card_info = 3;	// 用于出牌摸牌罚牌
+	optional StatusInfo status_info = 4;	// 更新状态
+	optional DoubtInfo doubt_info = 5;	// 指定人质疑
+}
+
+message ChatMsg {
+	required int64 time = 1;	// 客户端可以随便填个，服务端要重新更正为收到时间
+	required int32 userID = 2;	// 客户端可随便填，或填自己ID，服务端要重新更正为正确id
+	required string content = 3;
+}
+
+message ScoreInfo {
+	required int32 userID = 1;
+	required int32 score = 2;
+}
+
+message ScoreMsg {
+	repeated ScoreInfo score_info = 1;
+}
+
+message UNOMsg {
+	enum Type {
+		Room = 91;
+		Game = 92;
+		Chat = 93;
+		Error = 94;
+		Score = 95;
+	}
+
+	required Type type = 1;
+	required int64 sequence = 2;
+	optional RoomMsg room_msg = 3;
+	optional GameMsg game_msg = 4;
+	optional ChatMsg chat_msg = 5;
+	optional string error_msg = 6;
+	optional ScoreMsg score_msg = 7;
+}
